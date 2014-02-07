@@ -13,6 +13,7 @@ File { owner => 0, group => 0, mode => 0644 }
 
 group { 'puppet': ensure => present }
 group { 'www-data': ensure => present }
+group { 'vagrant': ensure => present }
 
 user { $::ssh_username:
   shell  => '/bin/bash',
@@ -235,16 +236,35 @@ exec { "exec mkdir -p ${webroot_location}":
   onlyif  => "test -d ${webroot_location}",
 }
 
+exec { "exec mkdir -p ${webroot_location}/public":
+  command => "mkdir -p ${webroot_location}/public",
+  onlyif  => "test -d ${webroot_location}/public",
+}
+
+
 if ! defined(File[$webroot_location]) {
   file { $webroot_location:
     ensure  => directory,
-    group   => 'www-data',
+    group   => 'vagrant',
     mode    => 0775,
     require => [
       Exec["exec mkdir -p ${webroot_location}"],
-      Group['www-data']
+      Group['vagrant']
     ]
   }
+}
+if ! defined(File["${webroot_location}/public"]) {
+  file { "${webroot_location}/public":
+    ensure  => directory,
+    group   => 'vagrant',
+    mode    => 0775,
+    require => [
+      Exec["exec mkdir -p ${webroot_location}/public"],
+      Group['vagrant']
+    ]
+  }
+
+
 }
 
 $php5_fpm_sock = '/var/run/php5-fpm.sock'
@@ -317,6 +337,21 @@ define nginx_vhost (
     },
     notify              => Class['nginx::service'],
   }
+
+nginx::resource::location { "${server_name}-htaccess":
+    ensure              => present,
+    vhost               => $server_name,
+    location            => '~ \.htaccess',
+    proxy               => undef,
+    www_root            => $www_root,
+    location_cfg_append => {
+    'deny'              => 'all'
+     },
+     notify             => Class['nginx::service'],
+ }
+
+
+
 }
 
 if $::osfamily == 'redhat' and $fastcgi_pass == "unix:${php5_fpm_sock}" {
@@ -645,9 +680,9 @@ if has_key($mysql_values, 'phpmyadmin') and $mysql_values['phpmyadmin'] == 1 and
   include puphpet::params
 
   if is_hash($apache_values) {
-    $mysql_pma_webroot_location = $puphpet::params::apache_webroot_location
+    $mysql_pma_webroot_location = "${puphpet::params::apache_webroot_location}/public"
   } elsif is_hash($nginx_values) {
-    $mysql_pma_webroot_location = $puphpet::params::nginx_webroot_location
+    $mysql_pma_webroot_location = "${puphpet::params::nginx_webroot_location}/public"
 
     mysql_nginx_default_conf { 'override_default_conf':
       webroot => $mysql_pma_webroot_location
@@ -682,7 +717,7 @@ if has_key($mysql_values, 'adminer') and $mysql_values['adminer'] == 1 and is_ha
 
   class { 'puphpet::adminer':
     location => "${mysql_adminer_webroot_location}/adminer",
-    owner    => 'www-data'
+    owner    => 'vagrant'
   }
 }
 

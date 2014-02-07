@@ -56,10 +56,10 @@ server:
 nginx:
     vhosts:
         3NU9E62PoYQF:
-            server_name: incoverage.dev
+            server_name: 192.168.56.101
             server_aliases:
                 - www.incoverage.dev
-            www_root: /var/www/incoverage.dev
+            www_root: /var/www/html/public
             listen_port: '80'
             index_files:
                 - index.html
