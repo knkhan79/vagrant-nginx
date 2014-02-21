@@ -68,7 +68,7 @@ nginx:
             envvars:
                 - 'APP_ENV dev'
 php:
-    version: '54'
+    version: '55'
     composer: 1
     modules:
         php:
